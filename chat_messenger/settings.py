@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'core',
     'users',
     'rest_framework',
+    'channels',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -127,3 +129,31 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',  # Require authentication for all views
+    ),
+
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'core.authentication.CustomTokenAuthentication',
+    ),
+}
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
+
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Replace with your frontend's URL
+    # Add more origins as needed
+]
+
+CORS_ALLOW_HEADERS = ['Authorization', 'Content-Type', 'UserId'] 
