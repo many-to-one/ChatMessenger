@@ -308,8 +308,10 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 id=userId
             )
             if user.token == token:
+                print('checkUser -------------------------', user.token)
                 return user
             else:
+                print('checkUser else -------------------------', user.token)
                 return None
         except CustomUser.DoesNotExist:
             return None
@@ -321,6 +323,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         # Remove the WebSocket channel from the chat room group
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         print('disconnect ---------------- ')
+        # await self.send(text_data=json.dumps({
+        #     'type': 'websocket.close',
+        #     'code': 1000,
+        #     'reason': 'Connection closed gracefully',
+        # }))
         await self.close()
 
 

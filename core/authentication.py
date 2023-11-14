@@ -95,7 +95,7 @@ class CustomTokenAuthentication(authentication.BaseAuthentication):
                 time = timezone.now() - user.login_at
 
                 # Check if the time elapsed is greater than 1 minute
-                if time > timedelta(minutes=60):
+                if time > timedelta(minutes=1):
                     print('timedelta > -------------------------')
                     # Add the token to the blacklist
                     BlackListToken.objects.create(

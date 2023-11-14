@@ -154,9 +154,10 @@ class DeleteChatRoom(APIView):
 
 
 class ConversationRoom(APIView):
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
-        authentication_classes = [CustomTokenAuthentication]  
-        permission_classes = [IsAuthenticated]
         token = request.auth
 
         serializer = ConversationSerializer(data=request.data)
