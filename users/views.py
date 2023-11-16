@@ -63,6 +63,7 @@ class LoginView(APIView):
             if user:                    
                 # If the user exists, create a token
                 user.token = token
+                user.access_token = f'{uuid4()}{uuid4()}{uuid4()}'
                 user.is_logged = True
                 user.login_at = login_at
                 user.save()
@@ -75,6 +76,7 @@ class LoginView(APIView):
                         'username': user.username,
                         'id': user.id,
                         'token': user.token,
+                        'access_token': user.access_token,
                         'photo': f'/media/{user.photo}'
                     }, 
                     status=status.HTTP_200_OK
@@ -161,14 +163,40 @@ class AccesToken(APIView):
     authentication_classes = [CustomTokenAuthentication]  
     permission_classes = [IsAuthenticated]
 
+    # def post(self, request):
+    #     data = request.auth
+    #     user = request.user
+    #     serializer = AccessTokenSerializer(user)
+    #     return Response(
+    #             {
+    #                 'AccesToken': data,
+    #                 "user": serializer.data
+    #             },
+    #             status=status.HTTP_200_OK
+    #         )
+
     def post(self, request):
-        data = request.auth
-        user = request.user
-        serializer = AccessTokenSerializer(user)
-        return Response(
+        access_token = request.auth
+        userId = request.data['userId']
+        user = get_object_or_404(CustomUser, id=userId)
+        print('AccesToken ------------------------', request.auth)
+        print('AccesToken userId ------------------------', userId)
+        print('AccesToken user ------------------------', user)
+        if user:                    
+            # If the user exists, create a token
+            user.token = f'{uuid4()}{uuid4()}{uuid4()}'
+            user.access_token = access_token
+            user.save()
+
+            return Response(
                 {
-                    'AccesToken': data,
-                    "user": serializer.data
-                },
+                    'message': 'Success',
+                    'email': user.email,
+                    'username': user.username,
+                    'id': user.id,
+                    'token': user.token,
+                    'access_token': user.access_token,
+                    'photo': f'/media/{user.photo}'
+                }, 
                 status=status.HTTP_200_OK
             )

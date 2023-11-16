@@ -271,6 +271,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
     # When a WebSocket connection is established
     async def connect(self):
 
+        print('connect trying -----------------------')
+
         # Get the chat room name from the URL
         self.room_name = self.scope['url_route']['kwargs']['room_name']
 
@@ -297,6 +299,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             await self.accept()
             print('connect ---------------- ')
         else:
+            print('connect unsuccessful ---------------- ')
             await self.close()
 
 
@@ -323,11 +326,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         # Remove the WebSocket channel from the chat room group
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         print('disconnect ---------------- ')
-        # await self.send(text_data=json.dumps({
-        #     'type': 'websocket.close',
-        #     'code': 1000,
-        #     'reason': 'Connection closed gracefully',
-        # }))
         await self.close()
 
 

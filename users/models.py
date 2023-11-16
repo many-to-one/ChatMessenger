@@ -56,6 +56,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         null=True,
         max_length=108,
     )
+    access_token = models.CharField(
+        null=True,
+        max_length=108,
+    )
     login_at = models.DateTimeField(
         null=True,
         auto_now_add=True

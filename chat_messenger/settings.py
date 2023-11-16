@@ -90,12 +90,25 @@ ASGI_APPLICATION = "chat_messenger.asgi.application"
 
 AUTH_USER_MODEL = 'users.CustomUser' # set this field before the first migration
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': config('NAME'),
+        'USER': config('USER'),
+        'PASSWORD': config('PASSWORD'),
+        'HOST': config('HOST'),  
+        'PORT': config('PORT'),
     }
 }
+
 
 
 # Password validation

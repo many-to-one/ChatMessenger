@@ -48,4 +48,5 @@ class AccessTokenSerializer(serializers.ModelSerializer):
             'email',
             'photo',
             'token',
+            'access_token',
         ]
