@@ -10,8 +10,13 @@ from urllib.parse import parse_qs
 from django.shortcuts import get_object_or_404
 
 
-class AllUsers(AsyncWebsocketConsumer):
+class AllUsersTest(AsyncWebsocketConsumer):
     async def connect(self):
+
+        # print('connect allUsers -----------------------')
+
+        # Get the chat room name from the URL
+        self.room_name = self.scope['url_route']['kwargs']['room_name']
 
         # Extract the token and userId from the query parameters
         query_string = self.scope['query_string'].decode('utf-8')
@@ -22,18 +27,37 @@ class AllUsers(AsyncWebsocketConsumer):
         userId = query_params.get('userId', [''])[0]
         print('COUNT SOCKET USER -----------------------', userId)
 
+        # Create a group name for this chat room
+        self.room_group_name = '%s' % self.room_name
+        print('allUsers name ---------------', self.room_group_name)
+
+        # Add the WebSocket channel to the group associated with the chat room
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+
         user = await self.checkUser(userId, token)
         if user:
             # Accept the WebSocket connection
             await self.accept()
-            print('connect ---------------- ')
+            print('connect allUsers ---------------- ')
             users = await self.getUsers(userId)  
             incomingFriendRequest = await self.getIncomingFriendRequest(userId)
             outComingFriendRequest = await self.getOutComingFriendRequest(userId)
             myFriends = await self.myFriends(userId)
             findFriends = await self.findFriends(userId)
             # await self.send(json.dumps(users))
-            await self.send(json.dumps(
+            # await self.send(json.dumps(
+            #     {
+            #         'type': 'allUsers',
+            #         'users': users,
+            #         'incomingFriendRequest': incomingFriendRequest,
+            #         'outComingFriendRequest': outComingFriendRequest,
+            #         'myFriends': myFriends,
+            #         'findFriends': findFriends,
+            #     }
+            # ))
+            await self.accept()
+            await self.channel_layer.group_send(
+                self.room_group_name, 
                 {
                     'type': 'allUsers',
                     'users': users,
@@ -42,7 +66,7 @@ class AllUsers(AsyncWebsocketConsumer):
                     'myFriends': myFriends,
                     'findFriends': findFriends,
                 }
-            ))
+            )
 
         else:
             await self.close()
@@ -181,18 +205,17 @@ class AllUsers(AsyncWebsocketConsumer):
                             'timestamp': '',
                             'unread': '',
                         }
-                    conv = conv.id
                     
             else:
                 unread_count=0
 
             user_data.append({
+                # 'type': 'allUsers',
                 'id': user.id,
                 'username': user.username,
                 'photo': f'/media/{user.photo}',
                 'count': unread_count,
                 'last_mess': last_mess_data,
-                'conv': conv,
             })
                     
         return user_data
@@ -246,6 +269,16 @@ class AllUsers(AsyncWebsocketConsumer):
                 }
             )
 
+        elif message_type == 'new_message_count':
+            count = text_data_json['count']
+            print('NEW MESS COUNT -----------------------', text_data_json)
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'mess_count', 
+                    'message': 'ok', 
+                }
+            )
 
         elif message_type == 'friendRequest':
             requestId = text_data_json.get('requestId', '')
@@ -253,12 +286,20 @@ class AllUsers(AsyncWebsocketConsumer):
             res = await self.addFriendRequest(requestId, userId)
             print('RECEIVE addFriend -----------------------', res)
             if res:
-                await self.send(
-                    text_data=json.dumps({
-                        'type': 'addFriend',
-                        'response': 'ok',
+                # await self.send(
+                #     text_data=json.dumps({
+                #         'type': 'addFriend',
+                #         'response': 'ok',
+                #         'request': res,
+                #     })
+                # )
+                await self.channel_layer.group_send(
+                    self.room_group_name, 
+                    {
+                        'type': 'addFriend', 
+                        'response': 'ok', 
                         'request': res,
-                    })
+                    }
                 )
 
 
@@ -269,12 +310,20 @@ class AllUsers(AsyncWebsocketConsumer):
 
             if res == True:
                 users = await self.getUsers(userId)
-                await self.send(
-                    text_data=json.dumps({
-                        'type': 'confirmRequest',
-                        'response': 'ok',
+                # await self.send(
+                #     text_data=json.dumps({
+                #         'type': 'confirmRequest',
+                #         'response': 'ok',
+                #         'users': users,
+                #     })
+                # )
+                await self.channel_layer.group_send(
+                    self.room_group_name, 
+                    {
+                        'type': 'confirmRequest', 
+                        'response': 'ok', 
                         'users': users,
-                    })
+                    }
                 )
 
 
@@ -283,11 +332,18 @@ class AllUsers(AsyncWebsocketConsumer):
             requestId = text_data_json.get('requestId', '')
             res = await self.denyRequest(userId, requestId)
             if res == True:
-                await self.send(
-                    text_data=json.dumps({
-                        'type': 'denyResponse',
-                        'response': 'ok',
-                    })
+                # await self.send(
+                #     text_data=json.dumps({
+                #         'type': 'denyResponse',
+                #         'response': 'ok',
+                #     })
+                # )
+                await self.channel_layer.group_send(
+                    self.room_group_name, 
+                    {
+                        'type': 'denyResponse', 
+                        'response': 'ok', 
+                    }
                 )
 
             
@@ -296,11 +352,18 @@ class AllUsers(AsyncWebsocketConsumer):
             requestId = text_data_json.get('requestId', '')
             res = await self.blockRequest(userId, requestId)
             if res == True:
-                await self.send(
-                    text_data=json.dumps({
-                        'type': 'blockResponse',
-                        'response': 'ok',
-                    })
+                # await self.send(
+                #     text_data=json.dumps({
+                #         'type': 'blockResponse',
+                #         'response': 'ok',
+                #     })
+                # )
+                await self.channel_layer.group_send(
+                    self.room_group_name, 
+                    {
+                        'type': 'blockResponse', 
+                        'response': 'ok', 
+                    }
                 )
 
 
@@ -402,5 +465,15 @@ class AllUsers(AsyncWebsocketConsumer):
             text_data=json.dumps({
                 'unread_count': unread_count,
                 'users': users,
+            })
+        )
+
+    # Send data to the clien side
+    async def mess_count(self, event):
+
+        message = event['message']
+        await self.send(
+            text_data=json.dumps({
+                'message': message,
             })
         )

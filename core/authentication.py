@@ -91,7 +91,7 @@ class CustomTokenAuthentication(authentication.BaseAuthentication):
         # Check if the request is a POST request to the 'login' endpoint
         elif request.method == 'POST' and 'register' in request.path:
 
-            print('request -------------------', request)
+            print('request -------------------', request.data)
 
             # Generate a new token and associate it with the user's email
             token = f'{uuid4()}{uuid4()}{uuid4()}'

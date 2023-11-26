@@ -20,9 +20,48 @@ from django.http import Http404, JsonResponse
 from users.models import CustomUser
 
 
-class MessageList(generics.ListAPIView):
-    queryset = Message.objects.all()
-    serializer_class = MessageSerializer
+# class MessageList(generics.ListAPIView):
+#     serializer_class = MessageSerializer
+
+#     def get_queryset(self):
+
+#         result = []
+#         # Get the current user from the request
+#         user = self.request.user
+
+#         # Filter messages based on the current user
+#         conversations = Conversation.objects.filter(user=user)
+#         for conv in conversations:
+#             messages_for_conv = list(Message.objects.filter(conversation=conv).values())
+#             result.extend(messages_for_conv)
+
+#         print('MessageList', result)
+#         return result
+
+
+class MessageList(APIView):
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Get the current user from the request
+        user = self.request.user
+
+        result = []
+
+        # Filter messages based on the current user
+        conversations = Conversation.objects.filter(user=user)
+        for conv in conversations:
+            messages_for_conv = list(Message.objects.filter(conversation=conv).values())
+            result.extend(messages_for_conv)
+
+        print('MessageList', result)
+
+        serializer = MessageSerializer(messages_for_conv, many=True)
+
+        return Response(
+            {'messages': result}
+        )
     
 
 class AllUserRoomMessages(APIView): 
@@ -190,9 +229,10 @@ class ConversationRoom(APIView):
     
 
 class GetConversationView(APIView):
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request, conv_id):
-        authentication_classes = [CustomTokenAuthentication]  
-        permission_classes = [IsAuthenticated]
         token = request.auth
         user = request.user
 
@@ -269,3 +309,13 @@ class DeleteUser(APIView):
                 {"data": "User has been deleted"},
                 status=status.HTTP_200_OK
             ) 
+
+
+class AllUserConversations(APIView):
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print('AllUserConversations', user)
+        # userId = request.data['user']

@@ -339,7 +339,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         if message_type == 'new_message':
             message = text_data_json['message']
             chatID = text_data_json['id']
-            print('SEND SOCKET MESS-----------------------', message, chatID)
+            # print('SEND SOCKET MESS-----------------------', message, chatID)
         
             # Extract the token and userId from the query parameters
             query_string = self.scope['query_string'].decode('utf-8')
@@ -347,6 +347,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
             # Get the userId from the query parameters
             userId = query_params.get('userId', [''])[0]
+            print('SEND SOCKET MESS-----------------------', message, chatID, userId)
 
             mess = await self.save_mess(message, userId, chatID)
             # Send the message to the chat room group (async def chatroom_message(self, event))
@@ -359,6 +360,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     'username': mess.user.username,
                     'unread': mess.unread,
                     'photo': f'/media/{mess.user.photo}',
+                    'conversation_id': chatID,
                 }
             )
 
@@ -402,6 +404,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         username = event['username']
         unread = event['unread']
         photo = event['photo']
+        conversation_id = event['conversation_id']
 
         # Get all messages asynchronously
         await self.send(
@@ -411,6 +414,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 'username': username,
                 'unread': unread,
                 'photo': photo,
+                'conversation_id': conversation_id,
             })
         )
 
