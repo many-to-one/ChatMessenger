@@ -51,18 +51,21 @@ class MessageList(APIView):
 
         # Filter messages based on the current user
         conversations = Conversation.objects.filter(user=user)
-        for conv in conversations:
-            messages_for_conv = list(Message.objects.filter(conversation=conv).values())
-            result.extend(messages_for_conv)
+        if conversations:
+            for conv in conversations:
+                messages_for_conv = list(Message.objects.filter(conversation=conv).values())
+                result.extend(messages_for_conv)
 
-        print('MessageList', result)
+            serializer = MessageSerializer(messages_for_conv, many=True)
 
-        serializer = MessageSerializer(messages_for_conv, many=True)
-
-        return Response(
-            {'messages': result}
-        )
+            return Response(
+                {'messages': result}
+            )
     
+        else:
+            return Response(
+                {'messages': []}
+            )
 
 class AllUserRoomMessages(APIView): 
     authentication_classes = [CustomTokenAuthentication]  

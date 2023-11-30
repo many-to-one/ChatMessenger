@@ -27,19 +27,19 @@ class AllUsers(AsyncWebsocketConsumer):
             # Accept the WebSocket connection
             await self.accept()
             print('connect ---------------- ')
-            users = await self.getUsers(userId)  
+            friends_count = await self.friends_count(userId)  
             incomingFriendRequest = await self.getIncomingFriendRequest(userId)
             outComingFriendRequest = await self.getOutComingFriendRequest(userId)
-            myFriends = await self.myFriends(userId)
+            # myFriends = await self.myFriends(userId)
             findFriends = await self.findFriends(userId)
             # await self.send(json.dumps(users))
             await self.send(json.dumps(
                 {
                     'type': 'allUsers',
-                    'users': users,
+                    'friends_count': friends_count,
                     'incomingFriendRequest': incomingFriendRequest,
                     'outComingFriendRequest': outComingFriendRequest,
-                    'myFriends': myFriends,
+                    # 'myFriends': myFriends,
                     'findFriends': findFriends,
                 }
             ))
@@ -83,21 +83,21 @@ class AllUsers(AsyncWebsocketConsumer):
         
         
 
-    @database_sync_to_async
-    def myFriends(self, userId):
-        req_data = []
-        user = get_object_or_404(CustomUser, id=userId)
-        try:
-            incomingFriendRequest = get_object_or_404(IncomingFriendRequest, user=user)
-            inUsers = incomingFriendRequest.inUsers.all()
-            if inUsers:    
-                print('GET INCOMING getIncomingFriendRequest ----------------', inUsers)            
-                for u in inUsers:
-                    req_data.append(serializers.FriendListSerializer(u).data)
-        except Exception:
-            return []
+    # @database_sync_to_async
+    # def myFriends(self, userId):
+    #     req_data = []
+    #     user = get_object_or_404(CustomUser, id=userId)
+    #     try:
+    #         incomingFriendRequest = get_object_or_404(IncomingFriendRequest, user=user)
+    #         inUsers = incomingFriendRequest.inUsers.all()
+    #         if inUsers:    
+    #             print('GET INCOMING getIncomingFriendRequest ----------------', inUsers)            
+    #             for u in inUsers:
+    #                 req_data.append(serializers.FriendListSerializer(u).data)
+    #     except Exception:
+    #         return []
 
-        return req_data
+    #     return req_data
         
 
     @database_sync_to_async
@@ -136,13 +136,60 @@ class AllUsers(AsyncWebsocketConsumer):
         return req_data
 
 
+    @database_sync_to_async
+    def friends_count(self, userId):
+        user = get_object_or_404(CustomUser, id=userId)
+        friends_count = user.friends.all().exclude(id=userId)
+        
+        return {
+            'count': friends_count.count(),
+        }
+    
+
+    # Send data to the clien side
+    # async def friends_count_(self, event):
+
+    #     friends_count = event['friends_count']
+
+    #     await self.send(
+    #         text_data=json.dumps({
+    #             'friends_count': friends_count,
+    #             # 'type': 'users'
+    #         })
+    #     )
+
 
     @database_sync_to_async
-    def getUsers(self, userId):
+    def getUser(self, userId, requestId):
+        requestUser = get_object_or_404(CustomUser, id=requestId)
+
+        conv = Conversation.objects.create()
+        conv.user.add(requestUser, userId)
+        conv.save()
+        # conv_serializer = serializers.Conv(conv)
+
+        last_mess_data = {  # Always ensure it's initialized
+            'content': '', 
+            'timestamp': '',
+            'unread': '',
+        }
+
+        return {
+            'id': requestUser.id,
+            'username': requestUser.username,
+            'photo': f'/media/{requestUser.photo}',
+            'count': 0,
+            'last_mess': last_mess_data,
+            'conv': conv.id,
+        }
+
+
+    @database_sync_to_async
+    def getUsers(self, requestId):
         from django.db.models import Q
-        user1 = get_object_or_404(CustomUser, id=userId)
+        user1 = get_object_or_404(CustomUser, id=requestId)
         # users = CustomUser.objects.all().exclude(id=userId)
-        users = user1.friends.all().exclude(id=userId)
+        user_ = user1.friends.all().exclude(id=requestId).order_by('id').last()
 
         user_data = []
 
@@ -152,64 +199,68 @@ class AllUsers(AsyncWebsocketConsumer):
             'unread': '',
         }
 
-        for user in users:
-            user2 = get_object_or_404(CustomUser, id=user.id)
-            conversation1 = Conversation.objects.filter(user=user1)
-            conversation2 = Conversation.objects.filter(user=user2)
-            # Find the common conversations
-            common_conversations = conversation1.filter(id__in=conversation2)
-
-            if common_conversations:
-                for conv in common_conversations:
-                    unread_count = Message.objects.filter(
-                        user=user2,
-                        conversation=conv,
-                        unread=True,
-                    ).count()
-                    last_mess = Message.objects.filter(
-                        conversation=conv,
-                    ).last()
-                    if last_mess is not None:
-                        last_mess_data = {
-                            'content': f'{last_mess.content[0:20]} ...', 
-                            'timestamp': last_mess.timestamp.strftime('%Y-%m-%d'),  
-                            'unread': last_mess.unread,
-                        }
-                    else:
-                        last_mess_data = {
-                            'content': '', 
-                            'timestamp': '',
-                            'unread': '',
-                        }
-                    conv = conv.id
+        # for user in users:
+        user2 = get_object_or_404(CustomUser, id=user_.id)
+        conversation1 = Conversation.objects.filter(user=user1)
+        conversation2 = Conversation.objects.filter(user=user_)
+        # Find the common conversations
+        common_conversations = conversation1.filter(id__in=conversation2)
+        if common_conversations:
+            for conv in common_conversations:
+                unread_count = Message.objects.filter(
+                    user=user2,
+                    conversation=conv,
+                    unread=True,
+                ).count()
+                last_mess = Message.objects.filter(
+                    conversation=conv,
+                ).last()
+                if last_mess is not None:
+                    last_mess_data = {
+                        'content': f'{last_mess.content[0:20]} ...', 
+                        'timestamp': last_mess.timestamp.strftime('%Y-%m-%d'),  
+                        'unread': last_mess.unread,
+                    }
+                else:
+                    last_mess_data = {
+                        'content': '', 
+                        'timestamp': '',
+                        'unread': '',
+                    }
+                conv = conv.id
+                
+        else:
+            unread_count=0
+            conv=None
+            last_mess_data = {
+                'content': '', 
+                'timestamp': '',
+                'unread': '',
+            }
+        user_data.append({
+            'id': user_.id,
+            'username': user_.username,
+            'photo': f'/media/{user_.photo}',
+            'count': unread_count,
+            'last_mess': last_mess_data,
+            'conv': conv,
+        })
                     
-            else:
-                unread_count=0
-
-            user_data.append({
-                'id': user.id,
-                'username': user.username,
-                'photo': f'/media/{user.photo}',
-                'count': unread_count,
-                'last_mess': last_mess_data,
-                'conv': conv,
-            })
-                    
-        return user_data
+        return user_data[0]
     
     # Send data to the clien side
-    async def users_(self, event):
+    # async def users_(self, event):
 
-        # unread_count = event['unread_count']
-        users = event['users']
+    #     # unread_count = event['unread_count']
+    #     users = event['users']
 
-        await self.send(
-            text_data=json.dumps({
-                # 'unread_count': unread_count,
-                'users': users,
-                'type': 'users'
-            })
-        )
+    #     await self.send(
+    #         text_data=json.dumps({
+    #             # 'unread_count': unread_count,
+    #             'users': users,
+    #             'type': 'users'
+    #         })
+    #     )
         
 
 
@@ -266,14 +317,17 @@ class AllUsers(AsyncWebsocketConsumer):
             userId = text_data_json.get('userId', '')
             requestId = text_data_json.get('requestId', '')
             res = await self.confirmRequest(userId, requestId)
+            user = await self.getUser(userId, requestId)
+
+            print('confirmRequest ---------------------', userId, requestId)
 
             if res == True:
-                users = await self.getUsers(userId)
+                # users = await self.getUsers(userId)
                 await self.send(
                     text_data=json.dumps({
                         'type': 'confirmRequest',
                         'response': 'ok',
-                        'users': users,
+                        'user': user,
                     })
                 )
 

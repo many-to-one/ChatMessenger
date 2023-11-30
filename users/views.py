@@ -16,6 +16,11 @@ from .models import (
     BlackListToken
 )
 
+from core.models import (
+    Conversation,
+    Message,
+    )
+
 from .serializers import (
     AccessTokenSerializer,
     RegisterSerializer,
@@ -117,6 +122,88 @@ class LogoutView(APIView):
             return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Error'}, status=status.HTTP_403_FORBIDDEN)
+        
+
+class FriendListView(APIView):
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        token = request.auth
+        user = request.user
+
+        if user.token == token:
+            friends = user.friends.all().exclude(id=user.id)
+            print('FRIENDS --------------------', friends)
+
+            user_data = []
+
+            last_mess_data = {  # Always ensure it's initialized
+                'content': '', 
+                'timestamp': '',
+                'unread': '',
+            }
+
+            for user in friends:
+                user2 = get_object_or_404(CustomUser, id=user.id)
+                conversation1 = Conversation.objects.filter(user=user)
+                conversation2 = Conversation.objects.filter(user=user2)
+                # Find the common conversations
+                common_conversations = conversation1.filter(id__in=conversation2)
+
+                if common_conversations:
+
+                    for conv in common_conversations:
+                        unread_count = Message.objects.filter(
+                            user=user2,
+                            conversation=conv,
+                            unread=True,
+                        ).count()
+                        last_mess = Message.objects.filter(
+                            conversation=conv,
+                        ).last()
+                        if last_mess is not None:
+                            last_mess_data = {
+                                'content': f'{last_mess.content[0:20]} ...', 
+                                'timestamp': last_mess.timestamp.strftime('%Y-%m-%d'),  
+                                'unread': last_mess.unread,
+                            }
+                        else:
+                            last_mess_data = {
+                                'content': '', 
+                                'timestamp': '',
+                                'unread': '',
+                            }
+                        conv = conv.id
+                    
+                    user_data.append({
+                        'id': user.id,
+                        'username': user.username,
+                        'photo': f'/media/{user.photo}',
+                        'count': unread_count,
+                        'last_mess': last_mess_data,
+                        'conv': conv,
+                    })
+                     
+                else:
+                    unread_count=0
+                    user_data.append({
+                     'id': user.id,
+                     'username': user.username,
+                     'photo': f'/media/{user.photo}',
+                     'count': unread_count,
+                     'last_mess': last_mess_data,
+                     'conv': conv,
+                 })
+
+            return Response(
+                {
+                    'user_data': user_data,
+                    "token": "Token is valid"
+                },
+                status=status.HTTP_200_OK
+            )
+
 
 
 class UserListView(APIView):
