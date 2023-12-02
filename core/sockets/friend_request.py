@@ -158,30 +158,55 @@ class AllUsers(AsyncWebsocketConsumer):
     #         })
     #     )
 
-
     @database_sync_to_async
     def getUser(self, userId, requestId):
+        user = get_object_or_404(CustomUser, id=userId)
         requestUser = get_object_or_404(CustomUser, id=requestId)
 
-        conv = Conversation.objects.create()
-        conv.user.add(requestUser, userId)
-        conv.save()
-        # conv_serializer = serializers.Conv(conv)
+        from django.db.models import Q
+        hasConv = Conversation.objects.filter(
+            Q(user=user) & Q(user=requestUser)
+        )
 
-        last_mess_data = {  # Always ensure it's initialized
-            'content': '', 
-            'timestamp': '',
-            'unread': '',
-        }
+        if hasConv:
+            last_mess = Message.objects.filter(
+                    conversation=hasConv,
+                ).last()
+            last_mess_data = {
+                'content': f'{last_mess.content[0:20]} ...', 
+                'timestamp': last_mess.timestamp.strftime('%Y-%m-%d'),  
+                'unread': last_mess.unread,
+            }
 
-        return {
-            'id': requestUser.id,
-            'username': requestUser.username,
-            'photo': f'/media/{requestUser.photo}',
-            'count': 0,
-            'last_mess': last_mess_data,
-            'conv': conv.id,
-        }
+            return {
+                'id': requestUser.id,
+                'username': requestUser.username,
+                'photo': f'/media/{requestUser.photo}',
+                'count': 0,
+                'last_mess': last_mess_data,
+                'conv': conv.id,
+            }
+
+        else:
+            conv = Conversation.objects.create()
+            conv.user.add(requestUser, userId)
+            conv.save()
+            # conv_serializer = serializers.Conv(conv)
+            last_mess_data = {  # Always ensure it's initialized
+                'content': '', 
+                'timestamp': '',
+                'unread': '',
+            }
+
+            return {
+                'id': requestUser.id,
+                'username': requestUser.username,
+                'photo': f'/media/{requestUser.photo}',
+                'count': 0,
+                'last_mess': last_mess_data,
+                'conv': conv.id,
+            }
+
 
 
     @database_sync_to_async

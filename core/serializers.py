@@ -42,7 +42,7 @@ class MessageSerializer(serializers.ModelSerializer):
     # conversation_id = ConversationSerializer()
     conversation_id = serializers.PrimaryKeyRelatedField(source='conversation', read_only=True)
     chat_id = serializers.PrimaryKeyRelatedField(source='chat', read_only=True)
-    # timestamp = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+    timestamp = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
 
     class Meta:
         model = Message

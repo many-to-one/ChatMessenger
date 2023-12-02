@@ -8,6 +8,7 @@ from .models import Chat, Conversation, Message
 from channels.db import database_sync_to_async
 from urllib.parse import parse_qs
 from django.shortcuts import get_object_or_404
+from django.core.serializers.json import DjangoJSONEncoder
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -95,7 +96,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'photo': f'/media/{mess.user.photo}',
                     'unread': mess.unread,
                     'chat_id': mess.chat.id,
-                    # 'timestamp': datetime.datetime.now(),
+                    'timestamp': mess.timestamp,
                 }
             )
 
@@ -170,7 +171,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         photo = event['photo']
         unread = event['unread']
         chat_id = event['chat_id']
-        # timestamp = event['timestamp']
+        timestamp = event['timestamp']
 
         # Get all messages asynchronously
         await self.send(
@@ -183,7 +184,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'photo': photo,
                 'unread': unread,
                 'chat_id': chat_id,
-                # 'timestamp': timestamp,
+                'timestamp': timestamp,
             })
         )
     
@@ -360,9 +361,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             # Get the userId from the query parameters
             userId = query_params.get('userId', [''])[0]
             receiverId = query_params.get('receiverId', [''])[0]
-            print('SEND SOCKET MESS-----------------------', message, chatID, receiverId, userId)
+            print('#################### SEND SOCKET MESS #####################', message, chatID, receiverId, userId)
 
             mess = await self.save_mess(message, userId, chatID)
+            # mess = await self.save_mess(message, userId, receiverId)
+
             # Send the message to the chat room group (async def chatroom_message(self, event))
             await self.channel_layer.group_send(
                 self.room_group_name, 
@@ -373,7 +376,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     'username': mess.user.username,
                     'user_id': mess.user.id,
                     'unread': mess.unread,
-                    # 'timestamp': mess.timestamp,
+                    'timestamp': json.dumps(mess.timestamp, cls=DjangoJSONEncoder),
                     'photo': f'/media/{mess.user.photo}',
                     'conversation_id': chatID,
                 }
@@ -421,6 +424,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         unread = event['unread']
         photo = event['photo']
         conversation_id = event['conversation_id']
+        timestamp = event['timestamp']
 
         # Get all messages asynchronously
         await self.send(
@@ -432,6 +436,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 'unread': unread,
                 'photo': photo,
                 'conversation_id': conversation_id,
+                'timestamp': timestamp,
             })
         )
 
@@ -475,6 +480,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def save_mess(self, message, userId, chatID):
         user = get_object_or_404(CustomUser, id=userId)
+        # receiver = get_object_or_404(CustomUser, id=receiverId)
+        # from django.db.models import Q
+        # conversation = Conversation.objects.filter(
+        #     Q(user=user) & Q(user=receiver) | Q(user=user) & Q(user=receiver)
+        # ).first()
         conversation = get_object_or_404(Conversation, id=chatID)
         mess = Message.objects.create(
             content=message,
