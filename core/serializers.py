@@ -15,6 +15,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
             )
         
 class FriendListSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = CustomUser
         fields = (
@@ -22,11 +23,14 @@ class FriendListSerializer(serializers.ModelSerializer):
             'username', 
             'photo',
             )
+        
+
 class ConversationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
         fields = '__all__'
+
 
 class Conv(serializers.ModelSerializer):
 
@@ -35,6 +39,7 @@ class Conv(serializers.ModelSerializer):
         fields = (
             'id',
         )
+
 
 class MessageSerializer(serializers.ModelSerializer):
     # user = serializers.PrimaryKeyRelatedField(read_only=True)

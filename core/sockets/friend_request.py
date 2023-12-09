@@ -174,7 +174,7 @@ class AllUsers(AsyncWebsocketConsumer):
                 ).last()
             last_mess_data = {
                 'content': f'{last_mess.content[0:20]} ...', 
-                'timestamp': last_mess.timestamp.strftime('%Y-%m-%d'),  
+                'timestamp': last_mess.timestamp.strftime('%Y-%m-%d %H:%M'),  
                 'unread': last_mess.unread,
             }
 
@@ -184,12 +184,14 @@ class AllUsers(AsyncWebsocketConsumer):
                 'photo': f'/media/{requestUser.photo}',
                 'count': 0,
                 'last_mess': last_mess_data,
-                'conv': conv.id,
+                'conv': hasConv.id,
+                'user1': user.id,
+                'user2': requestUser, 
             }
 
         else:
             conv = Conversation.objects.create()
-            conv.user.add(requestUser, userId)
+            conv.user.add(requestUser, user)
             conv.save()
             # conv_serializer = serializers.Conv(conv)
             last_mess_data = {  # Always ensure it's initialized
@@ -331,7 +333,7 @@ class AllUsers(AsyncWebsocketConsumer):
             if res:
                 await self.send(
                     text_data=json.dumps({
-                        'type': 'addFriend',
+                        'type': 'addFriend_',
                         'response': 'ok',
                         'request': res,
                     })
@@ -347,7 +349,6 @@ class AllUsers(AsyncWebsocketConsumer):
             print('confirmRequest ---------------------', userId, requestId)
 
             if res == True:
-                # users = await self.getUsers(userId)
                 await self.send(
                     text_data=json.dumps({
                         'type': 'confirmRequest',
@@ -481,5 +482,17 @@ class AllUsers(AsyncWebsocketConsumer):
             text_data=json.dumps({
                 'unread_count': unread_count,
                 'users': users,
+            })
+        )
+
+
+    # When a message is received by the chat room group
+    async def addFriend_(self, event):
+        # Get the message from the event
+        request = event['request']
+        # Get all messages asynchronously
+        await self.send(
+            text_data=json.dumps({
+                'request': request,
             })
         )

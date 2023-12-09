@@ -4,7 +4,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from core import serializers
 from users.models import CustomUser
 from users.serializers import UserListSerializer
-from .models import Chat, Conversation, Message
+from .models import Chat, Conversation, Message, OnPage
 from channels.db import database_sync_to_async
 from urllib.parse import parse_qs
 from django.shortcuts import get_object_or_404
@@ -277,9 +277,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             })
         )
 
-    
 
 class ConversationConsumer(AsyncWebsocketConsumer):
+
+    conver = None
+    usr = None
 
     # When a WebSocket connection is established
     async def connect(self):
@@ -297,7 +299,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         token = query_params.get('token', [''])[0]
         userId = query_params.get('userId', [''])[0]
         receiverId = query_params.get('receiverId', [''])[0]
-        print('RESEND SOCKET USERS -----------------------', userId, receiverId)
 
         # Create a group name for this chat room
         self.room_group_name = '%s' % self.room_name
@@ -306,7 +307,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         # Add the WebSocket channel to the group associated with the chat room
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
-        user = await self.checkUser(userId, token)
+        user = await self.checkUser(userId, token, self.room_group_name)
         if user:
             # Accept the WebSocket connection
             await self.accept()
@@ -318,12 +319,20 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
     
     @database_sync_to_async
-    def checkUser(self, userId, token):
+    def checkUser(self, userId, token, conv):
         try:
             user = CustomUser.objects.get(
                 id=userId
             )
             if user.token == token:
+                mess = Message.objects.filter(
+                    conversation=conv, 
+                    user=user,
+                    unread=True,
+                    )
+                for m in mess:
+                    m.unread = False
+                    m.save()
                 print('checkUser -------------------------', user.token)
                 return user
             else:
@@ -341,7 +350,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         print('disconnect ---------------- ')
         await self.close()
 
-
+    Unread = None
     # When a message is received from the WebSocket
     async def receive(self, text_data):
 
@@ -349,10 +358,43 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         text_data_json = json.loads(text_data)
         message_type = text_data_json.get('type', '')
 
+
+        if message_type == 'unread':
+            messageId = text_data_json['message']
+            chatID = text_data_json['id']
+            mess = await self.markAsRead(messageId)
+            print('UNREAD @@@@@@@@@@@@@', mess.id, mess.user.username)
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'chatroom_message_read', 
+                    'id': mess.id, 
+                    'content': mess.content,
+                    'username': mess.user.username,
+                    'user_id': mess.user.id,
+                    'unread': mess.unread,
+                    'timestamp': json.dumps(mess.timestamp, cls=DjangoJSONEncoder),
+                    'photo': f'/media/{mess.user.photo}',
+                    'conversation_id': chatID,
+                }
+            )
+
+
+        if message_type == 'on_page':
+            userId = text_data_json['userId']
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'on_page_response',
+                    'userId': userId
+                }
+            )
+
+
         if message_type == 'new_message':
             message = text_data_json['message']
             chatID = text_data_json['id']
-            print('SEND SOCKET MESS-----------------------', message, chatID)
+            receiverId = text_data_json['receiverId']
         
             # Extract the token and userId from the query parameters
             query_string = self.scope['query_string'].decode('utf-8')
@@ -360,10 +402,9 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
             # Get the userId from the query parameters
             userId = query_params.get('userId', [''])[0]
-            receiverId = query_params.get('receiverId', [''])[0]
-            print('#################### SEND SOCKET MESS #####################', message, chatID, receiverId, userId)
+            # receiverId = query_params.get('receiverId', [''])[0]
 
-            mess = await self.save_mess(message, userId, chatID)
+            mess = await self.save_mess(message, userId, chatID, receiverId)
             # mess = await self.save_mess(message, userId, receiverId)
 
             # Send the message to the chat room group (async def chatroom_message(self, event))
@@ -381,6 +422,13 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     'conversation_id': chatID,
                 }
             )
+            print('unread @@@@@@@@@@@@@', mess.unread)
+
+        # if message_type == 'mark_as_red':
+        #     conv_id = text_data_json['conv_id']
+        #     conv = get_object_or_404(Conversation, id=conv_id)
+        #     mess = Message.objects.filter(conversation=conv)
+        #     print('CONV @@@@@@@@@ MESS @@@@@@@@@@@', conv, mess)
 
         # Delete message logic
         if message_type == 'delete_message':
@@ -412,7 +460,45 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 }
             )
 
+
+    async def on_page_response(self, event):
+        userId = event['userId']
+
+        await self.send(
+            text_data=json.dumps({
+                'type': 'on_page_response',
+                'userId': userId,
+            })
+        )
     
+
+    async def chatroom_message_read(self, event):
+
+        # Get the message from the event
+        message = event['content']
+        id = event['id']
+        username = event['username']
+        user_id = event['user_id']
+        unread = event['unread']
+        photo = event['photo']
+        conversation_id = event['conversation_id']
+        timestamp = event['timestamp']
+
+        # Get all messages asynchronously
+        await self.send(
+            text_data=json.dumps({
+                'type': 'chatroom_message_read',
+                'content': message,
+                'id': id,
+                'username': username,
+                'user_id': user_id,
+                'unread': unread,
+                'photo': photo,
+                'conversation_id': conversation_id,
+                'timestamp': timestamp,
+            })
+        )
+        
     # When a message is received by the chat room group
     async def chatroom_message(self, event):
 
@@ -429,6 +515,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         # Get all messages asynchronously
         await self.send(
             text_data=json.dumps({
+                'type': 'received_message',
                 'content': message,
                 'id': id,
                 'username': username,
@@ -476,22 +563,41 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             })
         )
 
+
+    @database_sync_to_async
+    def markAsRead(self, mess):
+        message = get_object_or_404(Message, id=mess)
+        message.unread = True
+        message.save()
+        print('markAsRead @@@@@@@@@@@@@@@', message.id, message.user.username, message.content)
+        return message
+    
+
     # Save messages to the database
     @database_sync_to_async
-    def save_mess(self, message, userId, chatID):
-        user = get_object_or_404(CustomUser, id=userId)
-        # receiver = get_object_or_404(CustomUser, id=receiverId)
-        # from django.db.models import Q
-        # conversation = Conversation.objects.filter(
-        #     Q(user=user) & Q(user=receiver) | Q(user=user) & Q(user=receiver)
-        # ).first()
+    def save_mess(self, message, userId, chatID, receiverId):
         conversation = get_object_or_404(Conversation, id=chatID)
-        mess = Message.objects.create(
-            content=message,
-            user=user,
-            conversation=conversation,
-        )
-        mess.save()
+        user = get_object_or_404(CustomUser, id=userId)
+        receiver = get_object_or_404(CustomUser, id=receiverId)
+        if receiver.on_page == chatID:
+            mess = Message.objects.create(
+                content=message,
+                user=user,
+                conversation=conversation,
+                unread=False,
+            )
+            mess.save()
+            print('YES @@@@@@@@@@@@@@@')
+        else:
+            mess = Message.objects.create(
+                    content=message,
+                    user=user,
+                    conversation=conversation,
+                    unread=True,
+                )
+            mess.save()
+            print('NO @@@@@@@@@@@@@@@')
+        print('USER - 2 @@@@@@@@@@@@@', userId, chatID, mess.id, mess.unread, mess.user.username, mess.content)
         return mess
     
     # Delete message

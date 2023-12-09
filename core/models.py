@@ -58,6 +58,19 @@ class Conversation(models.Model):
         return str(self.id)
     
 
+class OnPage(models.Model):
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        null=True,
+    )
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        null=True,
+    )
+    
+
 class OutcomingFriendRequest(models.Model):
     user = models.ForeignKey(
         CustomUser, 
