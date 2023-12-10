@@ -144,12 +144,24 @@ class FriendListView(APIView):
                 'unread': '',
             }
 
-            for user in friends:
-                user2 = get_object_or_404(CustomUser, id=user.id)
+            # user2 = get_object_or_404(CustomUser, id=user.id)
+            # from django.db.models import Q
+            # common_conversations = Conversation.objects.filter(
+            #     Q(user=user) & Q(user=user2)
+            # )
+            # print('common_conversations @@@@@@@@@@@@@@@', common_conversations)
+
+            for user_ in friends:
+                user2 = get_object_or_404(CustomUser, id=user_.id)
                 conversation1 = Conversation.objects.filter(user=user)
                 conversation2 = Conversation.objects.filter(user=user2)
                 # Find the common conversations
                 common_conversations = conversation1.filter(id__in=conversation2)
+                # from django.db.models import Q
+                # common_conversations = Conversation.objects.filter(
+                #     Q(user=user) & Q(user=user2)
+                # )
+                print('common_conversations @@@@@@@@@@@@@@@', user, user2, common_conversations)
 
                 if common_conversations:
 
@@ -177,9 +189,9 @@ class FriendListView(APIView):
                         conv = conv.id
                     
                     user_data.append({
-                        'id': user.id,
-                        'username': user.username,
-                        'photo': f'/media/{user.photo}',
+                        'id': user_.id,
+                        'username': user_.username,
+                        'photo': f'/media/{user_.photo}',
                         'count': unread_count,
                         'last_mess': last_mess_data,
                         'conv': conv,

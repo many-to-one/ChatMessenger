@@ -296,7 +296,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         query_params = parse_qs(query_string)
 
         # Get the token and userId from the query parameters
-        token = query_params.get('token', [''])[0]
+        # token = query_params.get('token', [''])[0]
+        token = 'test without token'
         userId = query_params.get('userId', [''])[0]
         receiverId = query_params.get('receiverId', [''])[0]
 
@@ -324,20 +325,20 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             user = CustomUser.objects.get(
                 id=userId
             )
-            if user.token == token:
-                mess = Message.objects.filter(
-                    conversation=conv, 
-                    user=user,
-                    unread=True,
-                    )
-                for m in mess:
-                    m.unread = False
-                    m.save()
-                print('checkUser -------------------------', user.token)
-                return user
-            else:
-                print('checkUser else -------------------------', user.token)
-                return None
+            # if user.token == token:
+            mess = Message.objects.filter(
+                conversation=conv, 
+                user=user,
+                unread=True,
+                )
+            for m in mess:
+                m.unread = False
+                m.save()
+            print('checkUser -------------------------', user.token)
+            return user
+            # else:
+            #     print('checkUser else -------------------------', user.token)
+            #     return None
         except CustomUser.DoesNotExist:
             return None
         
@@ -423,12 +424,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 }
             )
             print('unread @@@@@@@@@@@@@', mess.unread)
-
-        # if message_type == 'mark_as_red':
-        #     conv_id = text_data_json['conv_id']
-        #     conv = get_object_or_404(Conversation, id=conv_id)
-        #     mess = Message.objects.filter(conversation=conv)
-        #     print('CONV @@@@@@@@@ MESS @@@@@@@@@@@', conv, mess)
 
         # Delete message logic
         if message_type == 'delete_message':
@@ -579,24 +574,13 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         conversation = get_object_or_404(Conversation, id=chatID)
         user = get_object_or_404(CustomUser, id=userId)
         receiver = get_object_or_404(CustomUser, id=receiverId)
-        if receiver.on_page == chatID:
-            mess = Message.objects.create(
-                content=message,
-                user=user,
-                conversation=conversation,
-                unread=False,
-            )
-            mess.save()
-            print('YES @@@@@@@@@@@@@@@')
-        else:
-            mess = Message.objects.create(
+        mess = Message.objects.create(
                     content=message,
                     user=user,
                     conversation=conversation,
                     unread=True,
                 )
-            mess.save()
-            print('NO @@@@@@@@@@@@@@@')
+        mess.save()
         print('USER - 2 @@@@@@@@@@@@@', userId, chatID, mess.id, mess.unread, mess.user.username, mess.content)
         return mess
     

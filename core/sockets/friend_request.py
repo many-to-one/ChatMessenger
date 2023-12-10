@@ -167,6 +167,7 @@ class AllUsers(AsyncWebsocketConsumer):
         hasConv = Conversation.objects.filter(
             Q(user=user) & Q(user=requestUser)
         )
+        print('hasConv @@@@@@@@@@@@', hasConv)
 
         if hasConv:
             last_mess = Message.objects.filter(
