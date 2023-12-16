@@ -4,7 +4,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from core import serializers
 from users.models import CustomUser
 from users.serializers import UserListSerializer
-from .models import Chat, Conversation, Message, OnPage
+from .models import Chat, Conversation, Message
 from channels.db import database_sync_to_async
 from urllib.parse import parse_qs
 from django.shortcuts import get_object_or_404
@@ -463,6 +463,17 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             text_data=json.dumps({
                 'type': 'on_page_response',
                 'userId': userId,
+            })
+        )
+
+
+    async def type_response(self, event):
+        receiverId = event['id']
+
+        await self.send(
+            text_data=json.dumps({
+                'type': 'type_response',
+                'receiverId': receiverId,
             })
         )
     
