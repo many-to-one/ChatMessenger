@@ -288,6 +288,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
         print('connect trying -----------------------')
 
+
         # Get the chat room name from the URL
         self.room_name = self.scope['url_route']['kwargs']['room_name']
 
@@ -299,7 +300,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         # token = query_params.get('token', [''])[0]
         token = 'test without token'
         userId = query_params.get('userId', [''])[0]
-        receiverId = query_params.get('receiverId', [''])[0]
+        # receiverId = query_params.get('receiverId', [''])[0]
 
         # Create a group name for this chat room
         self.room_group_name = '%s' % self.room_name
@@ -442,7 +443,9 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         if message_type == 'resend_message':
             message = text_data_json['message']
             chatID = text_data_json['id']
+            # print('RESEND_MESS @@@@@@@@@@@@@@', message, chatID)
             mess = await self.resend_mess(message, chatID)
+            print('RESEND_MESS @@@@@@@@@@@@@@', mess)
             await self.channel_layer.group_send(
                 self.room_group_name, 
                 {
@@ -451,7 +454,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     'content': mess.content,
                     'username': mess.user.username,
                     'unread': mess.unread,
-                    # 'photo': mess.user.photo,
+                    'timestamp': json.dumps(mess.timestamp, cls=DjangoJSONEncoder),
                 }
             )
 
@@ -555,8 +558,9 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         message = event['content']
         id = event['id']
         username = event['username']
-        resend = event['resend']
+        # resend = event['resend']
         unread = event['unread']
+        timestamp = event['timestamp']
 
         # Get all messages asynchronously
         await self.send(
@@ -564,8 +568,10 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 'content': message,
                 'id': id,
                 'username': username,
-                'resend': resend,
+                # 'resend': resend,
                 'unread': unread,
+                'timestamp': timestamp,
+                'type': 'resend_message_'
             })
         )
 
