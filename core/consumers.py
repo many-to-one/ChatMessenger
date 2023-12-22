@@ -327,14 +327,14 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 id=userId
             )
             # if user.token == token:
-            mess = Message.objects.filter(
-                conversation=conv, 
-                user=user,
-                unread=True,
-                )
-            for m in mess:
-                m.unread = False
-                m.save()
+            # mess = Message.objects.filter(
+            #     conversation=conv, 
+            #     user=user,
+            #     unread=True,
+            #     )
+            # for m in mess:
+            #     m.unread = False
+            #     m.save()
             print('checkUser -------------------------', user.token)
             return user
             # else:
@@ -384,11 +384,30 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
         if message_type == 'on_page':
             userId = text_data_json['userId']
+            chatId = text_data_json['chatId']
+            receiverId = text_data_json['receiverId']
+            await self.markAllAsRead(receiverId, chatId)
             await self.channel_layer.group_send(
                 self.room_group_name, 
                 {
                     'type': 'on_page_response',
                     'userId': userId
+                }
+            )
+
+
+        if message_type == 'on_chatUser':
+            userId = text_data_json['userId']
+            chatId = text_data_json['chatId']
+            receiverId = text_data_json['receiverId']
+            unreadMess = await self.unreadCount(receiverId, chatId)
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'on_chatUser_response',
+                    'userId': userId,
+                    'receiverId': receiverId,
+                    'unreadMess': unreadMess,
                 }
             )
 
@@ -406,8 +425,9 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             userId = query_params.get('userId', [''])[0]
             # receiverId = query_params.get('receiverId', [''])[0]
 
-            mess = await self.save_mess(message, userId, chatID, receiverId)
-            # mess = await self.save_mess(message, userId, receiverId)
+            mess, unread_mess = await self.save_mess(message, userId, chatID, receiverId)
+
+            # print('UNREAD_COUNT@@@@@@@@@@', unread_mess)
 
             # Send the message to the chat room group (async def chatroom_message(self, event))
             await self.channel_layer.group_send(
@@ -422,6 +442,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     'timestamp': json.dumps(mess.timestamp, cls=DjangoJSONEncoder),
                     'photo': f'/media/{mess.user.photo}',
                     'conversation_id': chatID,
+                    'unread_mess': unread_mess
                 }
             )
             print('unread @@@@@@@@@@@@@', mess.unread)
@@ -455,6 +476,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     'username': mess.user.username,
                     'unread': mess.unread,
                     'timestamp': json.dumps(mess.timestamp, cls=DjangoJSONEncoder),
+                    'user_id': mess.user.id,
                 }
             )
 
@@ -466,6 +488,21 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             text_data=json.dumps({
                 'type': 'on_page_response',
                 'userId': userId,
+            })
+        )
+
+
+    async def on_chatUser_response(self, event):
+        userId = event['userId']
+        receiverId = event['receiverId']
+        unreadMess = event['unreadMess']
+
+        await self.send(
+            text_data=json.dumps({
+                'type': 'on_chatUser_response',
+                'userId': userId,
+                'receiverId': receiverId,
+                'unreadMess': unreadMess,
             })
         )
 
@@ -520,6 +557,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         photo = event['photo']
         conversation_id = event['conversation_id']
         timestamp = event['timestamp']
+        unread_mess = event['unread_mess']
 
         # Get all messages asynchronously
         await self.send(
@@ -533,6 +571,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 'photo': photo,
                 'conversation_id': conversation_id,
                 'timestamp': timestamp,
+                'unread_mess': unread_mess,
             })
         )
 
@@ -561,6 +600,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         # resend = event['resend']
         unread = event['unread']
         timestamp = event['timestamp']
+        user_id = event['user_id']
 
         # Get all messages asynchronously
         await self.send(
@@ -571,6 +611,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 # 'resend': resend,
                 'unread': unread,
                 'timestamp': timestamp,
+                'user_id': user_id,
                 'type': 'resend_message_'
             })
         )
@@ -584,11 +625,48 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         print('markAsRead @@@@@@@@@@@@@@@', message.id, message.user.username, message.content)
         return message
     
+    
+    @database_sync_to_async
+    def unreadCount(self, receiverId, chatId):
+        conversation = get_object_or_404(Conversation, id=chatId)
+        print('conversation @@@@@@@@@@@@', conversation)
+        user = get_object_or_404(CustomUser, id=receiverId)
+        # receiver = get_object_or_404(CustomUser, id=receiverId)
+        unread_mess = Message.objects.filter(
+                    user=user,
+                    conversation=conversation,
+                    unread=True,
+                )
+        
+        return unread_mess.count()
+
+    @database_sync_to_async
+    def markAllAsRead(self, userId, chatId):
+        print('chatId, userId', userId, chatId)
+    
+        # Use get_object_or_404 to handle DoesNotExist exception
+        # conversation = get_object_or_404(Conversation, id=int(chatId))
+        # user = get_object_or_404(CustomUser, id=int(userId))
+
+        # print('conversation, user', conversation, user)
+
+        mess = Message.objects.filter(
+            conversation = get_object_or_404(Conversation, id=int(chatId)),
+            user = get_object_or_404(CustomUser, id=int(userId)),
+            unread=True
+        )
+
+        for m in mess:
+            m.unread=False
+            m.save()
+
+        print('markAllAsRead @@@@@@@@@@@', chatId, mess)
 
     # Save messages to the database
     @database_sync_to_async
     def save_mess(self, message, userId, chatID, receiverId):
         conversation = get_object_or_404(Conversation, id=chatID)
+        print('conversation @@@@@@@@@@@@', conversation)
         user = get_object_or_404(CustomUser, id=userId)
         receiver = get_object_or_404(CustomUser, id=receiverId)
         mess = Message.objects.create(
@@ -598,8 +676,28 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     unread=True,
                 )
         mess.save()
-        print('USER - 2 @@@@@@@@@@@@@', userId, chatID, mess.id, mess.unread, mess.user.username, mess.content)
-        return mess
+        unread_mess = Message.objects.filter(
+                    user=user,
+                    conversation=conversation,
+                    unread=True,
+                )
+        # print('USER - 2 @@@@@@@@@@@@@', unread_mess.count())
+        return mess, unread_mess.count()
+    
+
+    @database_sync_to_async
+    def get_unread_count(self, chatId, userId, receiverId):
+        pass
+        # conversation = get_object_or_404(Conversation, id=chatId)
+        # print('conversation @@@@@@@@@@@@', conversation)
+        # receiver = get_object_or_404(CustomUser, id=receiverId)
+        # mess = Message.objects.filter(
+        #     user=receiver,
+        #     conversation=conversation,
+        #     unread=True,
+        # )
+        # return mess
+
     
     # Delete message
     @database_sync_to_async
