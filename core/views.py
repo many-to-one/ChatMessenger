@@ -20,23 +20,42 @@ from django.http import Http404, JsonResponse
 from users.models import CustomUser
 
 
-# class MessageList(generics.ListAPIView):
-#     serializer_class = MessageSerializer
+class ChatUsers(APIView):
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
 
-#     def get_queryset(self):
+    def get(self, request, chat_id,):
+        # chat_id = request.headers.get('chat_id')
+        chat = get_object_or_404(Chat, id=chat_id)
+        chat_users = chat.user_info()
+        print('chat_users @@@@@@@', chat_users)
+        print('chat.creater @@@@@@@', chat.creater)
 
-#         result = []
-#         # Get the current user from the request
-#         user = self.request.user
+        return Response({
+            'chat': chat_users,
+            'creater': chat.creater,
+        })
+    
 
-#         # Filter messages based on the current user
-#         conversations = Conversation.objects.filter(user=user)
-#         for conv in conversations:
-#             messages_for_conv = list(Message.objects.filter(conversation=conv).values())
-#             result.extend(messages_for_conv)
+class AddUsersToChat(APIView):
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
 
-#         print('MessageList', result)
-#         return result
+    def post(self, request):
+        users = request.data['users']
+        chat_id = request.data['chat_id']
+        chat = get_object_or_404(Chat, id=chat_id)
+        for user in users:
+            chat.user.add(user)
+            chat.save()
+        print('AddUsersToChat @@@@@@@@@@@@@', chat)
+        return Response({
+                'AddUsersToChat': 'ok'
+            })
+        # if data:
+        #     return Response({
+        #         'AddUsersToChat': 'AddUsersToChat - ok'
+        #     })
 
 
 class MessageList(APIView):
@@ -55,6 +74,12 @@ class MessageList(APIView):
             for conv in conversations:
                 messages_for_conv = list(Message.objects.filter(conversation=conv).values())
                 result.extend(messages_for_conv)
+
+        chats = Chat.objects.filter(user=user)
+        if chats:
+            for chat in chats:
+                messages_for_chat = list(Message.objects.filter(chat=chat).values())
+                result.extend(messages_for_chat)
 
             serializer = MessageSerializer(messages_for_conv, many=True)
 
@@ -108,10 +133,10 @@ class AllUserRoomMessages(APIView):
     
 
 class CreateChatRoom(APIView):
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
+    
     def post(self, request):
-
-        authentication_classes = [CustomTokenAuthentication]  
-        permission_classes = [IsAuthenticated]
         user = request.user
         token = request.auth
 
@@ -150,15 +175,18 @@ class CreateChatRoom(APIView):
     
 
 class AllChatRooms(APIView):
-    def get(self, request, user_id):
 
-        authentication_classes = [CustomTokenAuthentication]  
-        permission_classes = [IsAuthenticated]
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, user_id):
         user = request.user
         token = request.auth
 
         if user.token == token:
             chats = Chat.objects.filter(user=user)
+            for chat in chats:
+                print('CHATS @@@@@@@@@@@', chat.user)
             serializer = ChatSerializer(chats, many=True)
             return Response(
                 {
@@ -176,9 +204,11 @@ class AllChatRooms(APIView):
 
 
 class DeleteChatRoom(APIView):
+
+    authentication_classes = [CustomTokenAuthentication]  
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request, chat_id):
-        authentication_classes = [CustomTokenAuthentication]  
-        permission_classes = [IsAuthenticated]
         user = request.user
         token = request.auth
 

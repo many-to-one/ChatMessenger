@@ -84,6 +84,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             userId = query_params.get('userId', [''])[0]
 
             mess = await self.save_mess(message, userId, chatID)
+            print('CHAT MESS @@@@@@@@@', mess)
             # Send the message to the chat room group (async def chatroom_message(self, event))
             await self.channel_layer.group_send(
                 self.room_group_name, 
@@ -96,7 +97,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'photo': f'/media/{mess.user.photo}',
                     'unread': mess.unread,
                     'chat_id': mess.chat.id,
-                    'timestamp': mess.timestamp,
+                    'timestamp': json.dumps(mess.timestamp, cls=DjangoJSONEncoder),
                 }
             )
 
@@ -118,6 +119,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # Add new users to the chat
         if message_type == 'add_users':
+
             users = await self.addUsers(text_data_json['users'], text_data_json['chatId'])
             print('NEW_USERS ----------------------', users)
             if users != False:
@@ -129,6 +131,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                      'id': user.id,
                      'username': user.username,
                      'photo': f'/media/{user.photo}',
+                     'chat_id': text_data_json['chatId'],
                     }
                 )
                     
@@ -243,6 +246,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         id = event['id']
         username = event['username']
         photo = event['photo']
+        chat_id = event['chat_id']
 
         # Get all messages asynchronously
         await self.send(
@@ -252,6 +256,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'id': id,
                 'username': username,
                 'photo': photo,
+                'chat_id': chat_id,
             })
         )
 

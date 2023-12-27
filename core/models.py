@@ -45,7 +45,8 @@ class Chat(models.Model):
             user_info = {
                 'id': user.id,
                 'username': user.username,
-                'photo': f'/media/{user.photo}' if user.photo else None
+                'photo': f'/media/{user.photo}' if user.photo else None,
+                'creater': self.creater
             }
             user_data.append(user_info)
         return user_data

@@ -12,4 +12,6 @@ urlpatterns = [
     path('getConversation/<conv_id>/', GetConversationView.as_view(), name='conversations'),
     path('saveMess/', SaveMessage.as_view(), name='saveMess'),
     path('delUser/', DeleteUser.as_view(), name='delUser'),
+    path('chatUsers/<chat_id>/', ChatUsers.as_view(), name='chatUsers'),
+    path('addUsersToChat/', AddUsersToChat.as_view(), name='addUsersToChat'),
 ]
