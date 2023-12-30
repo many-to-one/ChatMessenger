@@ -1,3 +1,4 @@
+import base64
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -48,14 +49,10 @@ class AddUsersToChat(APIView):
         for user in users:
             chat.user.add(user)
             chat.save()
-        print('AddUsersToChat @@@@@@@@@@@@@', chat)
+
         return Response({
                 'AddUsersToChat': 'ok'
             })
-        # if data:
-        #     return Response({
-        #         'AddUsersToChat': 'AddUsersToChat - ok'
-        #     })
 
 
 class MessageList(APIView):
@@ -74,6 +71,8 @@ class MessageList(APIView):
             for conv in conversations:
                 messages_for_conv = list(Message.objects.filter(conversation=conv).values())
                 result.extend(messages_for_conv)
+
+                        
 
         chats = Chat.objects.filter(user=user)
         if chats:

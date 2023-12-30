@@ -21,6 +21,9 @@ class Message(models.Model):
     def __str__(self):
         return self.content
     
+    def user_photo(self):
+        return f'/media/{self.user.photo}' if self.user.photo else None,
+    
 
 class Chat(models.Model):
     name = models.CharField(

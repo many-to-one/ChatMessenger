@@ -396,7 +396,22 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 self.room_group_name, 
                 {
                     'type': 'on_page_response',
-                    'userId': userId
+                    'userId': userId,
+                    'typing': True,
+                }
+            )
+
+
+        if message_type == 'typing':
+            typing = text_data_json['typing']
+            user_id = text_data_json['user']
+            print('TYPING @@@@@@@@@@@@@@@@@@@@@@@@', typing, user_id)
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'typing_response',
+                    'typing': typing,
+                    'user_id': user_id,
                 }
             )
 
@@ -488,11 +503,26 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
     async def on_page_response(self, event):
         userId = event['userId']
+        typing = event['typing']
 
         await self.send(
             text_data=json.dumps({
                 'type': 'on_page_response',
                 'userId': userId,
+                'typing': typing,
+            })
+        )
+
+
+    async def typing_response(self, event):
+        typing = event['typing']
+        user_id = event['user_id']
+
+        await self.send(
+            text_data=json.dumps({
+                'type': 'typing_',
+                'typing': typing,
+                'user_id': user_id,
             })
         )
 
@@ -648,24 +678,15 @@ class ConversationConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def markAllAsRead(self, userId, chatId):
         print('chatId, userId', userId, chatId)
-    
-        # Use get_object_or_404 to handle DoesNotExist exception
-        # conversation = get_object_or_404(Conversation, id=int(chatId))
-        # user = get_object_or_404(CustomUser, id=int(userId))
 
-        # print('conversation, user', conversation, user)
-
-        mess = Message.objects.filter(
-            conversation = get_object_or_404(Conversation, id=int(chatId)),
-            user = get_object_or_404(CustomUser, id=int(userId)),
+        # Update all unread messages in one query
+        Message.objects.filter(
+            conversation=get_object_or_404(Conversation, id=int(chatId)),
+            user=get_object_or_404(CustomUser, id=int(userId)),
             unread=True
-        )
+        ).update(unread=False)
 
-        for m in mess:
-            m.unread=False
-            m.save()
-
-        print('markAllAsRead @@@@@@@@@@@', chatId, mess)
+        print('markAllAsRead @@@@@@@@@@@', chatId)
 
     # Save messages to the database
     @database_sync_to_async
