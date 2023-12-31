@@ -501,6 +501,32 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             )
 
 
+        if message_type == 'call_in':
+            caller = text_data_json['caller']
+            receiver = text_data_json['receiver']
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'call_in_response', 
+                    'caller': caller,
+                    'receiver': receiver,
+                }
+            )
+
+
+    async def call_in_response(self, event):
+        caller = event['caller']
+        receiver = event['receiver']
+
+        await self.send(
+            text_data=json.dumps({
+                'type': 'call_in_response',
+                'caller': caller,
+                'receiver': receiver,
+            })
+        )
+
+
     async def on_page_response(self, event):
         userId = event['userId']
         typing = event['typing']
