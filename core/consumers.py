@@ -501,28 +501,30 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             )
 
 
-        if message_type == 'call_in':
+        if message_type == 'start_call':
             caller = text_data_json['caller']
-            receiver = text_data_json['receiver']
+            # receiver = text_data_json['receiver']
+            print('start_call @@@@@@@@@@@@@@', caller)
+
             await self.channel_layer.group_send(
                 self.room_group_name, 
                 {
-                    'type': 'call_in_response', 
+                    'type': 'start_call_response', 
                     'caller': caller,
-                    'receiver': receiver,
+                    # 'receiver': receiver,
                 }
             )
 
 
-    async def call_in_response(self, event):
+    async def start_call_response(self, event):
         caller = event['caller']
-        receiver = event['receiver']
+        # receiver = event['receiver']
 
         await self.send(
             text_data=json.dumps({
-                'type': 'call_in_response',
+                'type': 'start_call_response',
                 'caller': caller,
-                'receiver': receiver,
+                # 'receiver': receiver,
             })
         )
 

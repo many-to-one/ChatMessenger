@@ -22,6 +22,9 @@ class AllUsers(AsyncWebsocketConsumer):
         userId = query_params.get('userId', [''])[0]
         print('COUNT SOCKET USER -----------------------', userId)
 
+        self.room_group_name = '1'
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+
         user = await self.checkUser(userId, token)
         if user:
             # Accept the WebSocket connection
@@ -50,6 +53,7 @@ class AllUsers(AsyncWebsocketConsumer):
         # self.accept()
 
         print('FriendRequest CONNECT -----------------------')
+
 
 
     @database_sync_to_async
@@ -383,6 +387,34 @@ class AllUsers(AsyncWebsocketConsumer):
                         'response': 'ok',
                     })
                 )
+
+
+        elif message_type == 'call_in':
+            caller = text_data_json['caller']
+            receiver = text_data_json['receiver']
+            print('call_in @@@@@@@@@@@@@@', caller, receiver)
+
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'call_in_response', 
+                    'caller': caller,
+                    'receiver': receiver,
+                }
+            )
+
+
+    async def call_in_response(self, event):
+        caller = event['caller']
+        receiver = event['receiver']
+
+        await self.send(
+            text_data=json.dumps({
+                'type': 'call_in_response',
+                'caller': caller,
+                'receiver': receiver,
+            })
+        )
 
 
     @database_sync_to_async
