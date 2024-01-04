@@ -389,32 +389,32 @@ class AllUsers(AsyncWebsocketConsumer):
                 )
 
 
-        elif message_type == 'call_in':
-            caller = text_data_json['caller']
-            receiver = text_data_json['receiver']
-            print('call_in @@@@@@@@@@@@@@', caller, receiver)
+        # elif message_type == 'call_in':
+        #     caller = text_data_json['caller']
+        #     signalData = text_data_json['signalData']
+        #     print('call_in @@@@@@@@@@@@@@', caller, signalData)
 
-            await self.channel_layer.group_send(
-                self.room_group_name, 
-                {
-                    'type': 'call_in_response', 
-                    'caller': caller,
-                    'receiver': receiver,
-                }
-            )
+        #     await self.channel_layer.group_send(
+        #         self.room_group_name, 
+        #         {
+        #             'type': 'call_in_response', 
+        #             'caller': caller,
+        #             'signalData': signalData,
+        #         }
+        #     )
 
 
-    async def call_in_response(self, event):
-        caller = event['caller']
-        receiver = event['receiver']
+    # async def call_in_response(self, event):
+    #     caller = event['caller']
+    #     signalData = event['signalData']
 
-        await self.send(
-            text_data=json.dumps({
-                'type': 'call_in_response',
-                'caller': caller,
-                'receiver': receiver,
-            })
-        )
+    #     await self.send(
+    #         text_data=json.dumps({
+    #             'type': 'call_in_response',
+    #             'caller': caller,
+    #             'signalData': signalData,
+    #         })
+    #     )
 
 
     @database_sync_to_async

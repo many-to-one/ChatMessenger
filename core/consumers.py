@@ -501,32 +501,105 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             )
 
 
-        if message_type == 'start_call':
+        if message_type == 'call_in':
             caller = text_data_json['caller']
-            # receiver = text_data_json['receiver']
-            print('start_call @@@@@@@@@@@@@@', caller)
+            signalData = text_data_json['signalData']
+            print('call_in @@@@@@@@@@@@@@', caller, signalData)
 
             await self.channel_layer.group_send(
                 self.room_group_name, 
                 {
-                    'type': 'start_call_response', 
+                    'type': 'call_in_response', 
                     'caller': caller,
-                    # 'receiver': receiver,
+                    'signalData': signalData,
                 }
             )
 
 
-    async def start_call_response(self, event):
-        caller = event['caller']
-        # receiver = event['receiver']
+        if message_type == 'answer_call':
+            signal = text_data_json['signal']
+            receiver = text_data_json['receiver']
+            print('receiverAnswerCall @@@@@@@@@@@@@@', signal, receiver)
+
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'answer_call_response', 
+                    'signal': signal,
+                    'receiver': receiver,
+                }
+            )
+
+
+        if message_type == 'leave_call':
+            await self.channel_layer.group_send(
+                self.room_group_name, 
+                {
+                    'type': 'leave_call_response', 
+                }
+            )
+
+
+    async def leave_call_response(self, event):
+        await self.send(
+            text_data=json.dumps({
+                'type': 'leave_call_response',
+            })
+        )
+
+
+    async def answer_call_response(self, event):
+        signal = event['signal']
+        receiver = event['receiver']
 
         await self.send(
             text_data=json.dumps({
-                'type': 'start_call_response',
-                'caller': caller,
-                # 'receiver': receiver,
+                'type': 'answer_call_response',
+                'signal': signal,
+                'receiver': receiver,
             })
         )
+
+
+    async def call_in_response(self, event):
+        caller = event['caller']
+        signalData = event['signalData']
+
+        await self.send(
+            text_data=json.dumps({
+                'type': 'call_in_response',
+                'caller': caller,
+                'signalData': signalData,
+            })
+        )
+
+
+    #     if message_type == 'start_call':
+    #         caller = text_data_json['caller']
+    #         signalData = text_data_json['signalData']
+    #         print('start_call @@@@@@@@@@@@@@', caller, signalData)
+
+    #         await self.channel_layer.group_send(
+    #             self.room_group_name, 
+    #             {
+    #                 'type': 'start_call_response', 
+    #                 'caller': caller,
+    #                 'signalData': signalData,
+    #             }
+    #         )
+
+
+    # async def start_call_response(self, event):
+    #     caller = event['caller']
+    #     signalData = event['signalData']
+
+    #     await self.send(
+    #         text_data=json.dumps({
+    #             'type': 'start_call_response',
+    #             'caller': caller,
+    #             'signalData': signalData,
+    #         })
+    #     )
 
 
     async def on_page_response(self, event):
